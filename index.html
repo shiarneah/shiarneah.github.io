@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Profile with Games</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1b2838;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        .search-box {
+            margin-bottom: 30px;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 250px;
+            border-radius: 4px;
+            border: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #66c0f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #417a9b;
+        }
+        #profile {
+            background-color: #171a21;
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            text-align: left;
+            width: 350px;
+        }
+        .avatar {
+            border: 2px solid #66c0f4;
+            border-radius: 4px;
+            width: 150px;
+            display: block;
+            margin: 0 auto 15px auto;
+        }
+        .hidden {
+            display: none !important;
+        }
+        p {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+        #gamesList::-webkit-scrollbar {
+            width: 6px;
+        }
+        #gamesList::-webkit-scrollbar-track {
+            background: #171a21;
+        }
+        #gamesList::-webkit-scrollbar-thumb {
+            background: #2a475e;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Информация об игроке Steam</h1>
+    
+    <div class="search-box">
+        <input type="text" id="steamIdInput" placeholder="Введите SteamID" value="">
+        <button onclick="getSteamProfile()">Узнать инфо</button>
+    </div>
+
+    <div id="profile" class="hidden">
+        <img id="avatar" class="avatar" src="" alt="Аватар">
+        <h2 id="nickname" style="text-align: center; margin-top: 0;">Никнейм</h2>
+        <hr style="border-color: #2a475e;">
+        
+        <p id="status"><b>Статус:</b> </p>
+        <p id="realname"><b>Настоящее имя:</b> </p>
+        <p id="country"><b>Страна:</b> </p>
+        <p id="privacy"><b>Доступ к профилю:</b> </p>
+        <p id="created"><b>Аккаунт создан:</b> </p>
+        <p style="text-align: center; margin-top: 15px;"><a id="profileUrl" href="#" target="_blank" style="color: #66c0f4;">Ссылка на профиль</a></p>
+        
+        <hr style="border-color: #2a475e; margin-top: 20px;">
+        <h3 style="text-align: center; color: #66c0f4; margin-bottom: 10px; margin-top: 10px;">Список игр:</h3>
+        <div id="gamesList" style="max-height: 200px; overflow-y: auto; padding-right: 5px;"></div>
+    </div>
+
+    <script>
+        async function getSteamProfile() {
+            const steamId = document.getElementById('steamIdInput').value;
+            const profileBlock = document.getElementById('profile');
+            const gamesListBlock = document.getElementById('gamesList');
+            
+            if (!steamId) {
+                alert('Пожалуйста, введите Steam ID');
+                return;
+            }
+
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const steamApiUrl = 'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=279F4EE51CE95AEEDE90A373B5DB8A1D&steamids=' + steamId;
+            const gamesApiUrl = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=279F4EE51CE95AEEDE90A373B5DB8A1D&steamid=' + steamId + '&include_appinfo=true&format=json';
+try {
+                document.getElementById('nickname').innerText = 'Загрузка...';
+                gamesListBlock.innerHTML = '<p style="color: #8f98a0; text-align: center;">Загрузка игр...</p>';
+                profileBlock.classList.remove('hidden');
+
+                const response = await fetch(proxyUrl + steamApiUrl);
+                const data = await response.json();
+
+                if (data.response && data.response.players && data.response.players.length > 0) {
+                    const player = data.response.players[0];
+
+                    document.getElementById('avatar').src = player.avatarfull;
+                    document.getElementById('nickname').innerText = player.personaname;
+                    document.getElementById('profileUrl').href = player.profileurl;
+
+                    let statusText = 'Не в сети';
+                    if (player.personastate === 1) statusText = 'В сети';
+                    if (player.personastate === 2) statusText = 'Занят';
+                    if (player.personastate === 3) statusText = 'Отошел';
+                    if (player.personastate === 4) statusText = 'Спит';
+                    if (player.gameextrainfo) statusText = 'В игре: ' + player.gameextrainfo;
+                    document.getElementById('status').innerHTML = '<b>Статус:</b> ' + statusText;
+
+                    let nameText = player.realname ? player.realname : 'не указано';
+                    document.getElementById('realname').innerHTML = '<b>Настоящее имя:</b> ' + nameText;
+
+                    let countryText = player.loccountrycode ? player.loccountrycode : 'не указана';
+                    document.getElementById('country').innerHTML = '<b>Страна:</b> ' + countryText;
+
+                    let privacyText = player.communityvisibilitystate === 3 ? 'Открытый профиль' : 'Скрытый профиль';
+                    document.getElementById('privacy').innerHTML = '<b>Доступ:</b> ' + privacyText;
+
+                    if (player.timecreated) {
+                        const date = new Date(player.timecreated * 1000);
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        document.getElementById('created').innerHTML = '<b>Аккаунт создан:</b> ' + day + '.' + month + '.' + year;
+                    } else {
+                        document.getElementById('created').innerHTML = '<b>Аккаунт создан:</b> скрыто приватностью';
+                    }
+
+                    try {
+                        const gamesResponse = await fetch(proxyUrl + gamesApiUrl);
+                        const gamesData = await gamesResponse.json();
+
+                        if (gamesData.response && gamesData.response.games && gamesData.response.games.length > 0) {
+                            const sortedGames = gamesData.response.games.sort((a, b) => b.playtime_forever - a.playtime_forever);
+                            gamesListBlock.innerHTML = '';
+
+                            sortedGames.forEach(game => {
+                                const hours = Math.round(game.playtime_forever / 60);
+                                const gameRow = document.createElement('div');
+                                gameRow.style.display = 'flex';
+                                gameRow.style.justifyContent = 'space-between';
+                                gameRow.style.padding = '6px 0';
+                                gameRow.style.borderBottom = '1px dashed #2a475e';
+                                gameRow.style.fontSize = '14px';
+
+                                gameRow.innerHTML = `
+                                    <span style="color: #fff; font-weight: bold; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${game.name}</span>
+<span style="color: #66c0f4; font-weight: bold;">${hours} ч.</span>
+                                `;
+                                gamesListBlock.appendChild(gameRow);
+                            });
+                        } else {
+                            gamesListBlock.innerHTML = '<p style="color: #8f98a0; text-align: center; font-size: 13px;">Игры скрыты настройками приватности.</p>';
+                        }
+                    } catch (gameError) {
+                        console.error('Ошибка загрузки игр:', gameError);
+                        gamesListBlock.innerHTML = '<p style="color: #ff4c4c; text-align: center; font-size: 13px;">Не удалось загрузить игры.</p>';
+                    }
+
+                } else {
+                    alert('Игрок не найден.');
+                    profileBlock.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при запросе данных.');
+                profileBlock.classList.add('hidden');
+            }
+        }
+    </script>
+<br>
+<hr>
+<br>
+<div class="copyright">сделал Ezekiel (shiarneah)</div>
+</body>
+</html>
